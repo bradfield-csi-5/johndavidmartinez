@@ -150,13 +150,19 @@ int main(int argc, char *argv[]) {
 	int long_list_fmt = 0;
 	int i;
 	// Process Arguments
-	char* dir_to_ls = malloc(MAX_DIRECTORY_SIZE * sizeof(char));
-	dir_to_ls[0] = '.';
-	dir_to_ls[1] = '\0';
+        char* dirz_to_ls[4];
+        int dirz_idx = 0;
+        for (i = 0; i < 4; i++) {
+            dirz_to_ls[i] = malloc(MAX_DIRECTORY_SIZE * sizeof(char));
+        }
+        // default CWD
+        dirz_to_ls[0][0] = '.';
+	dirz_to_ls[0][1] = '\0';
 	for (i = 1; i < argc; i++) {
 		if (argv[i][0] != '-') {
 			// assume non-flag argument is directory
-			strncpy(dir_to_ls, argv[i], MAX_DIRECTORY_SIZE);
+                        strncpy(dirz_to_ls[dirz_idx], argv[i], MAX_DIRECTORY_SIZE);
+                        dirz_idx++;
 		}
 		if (strcmp(argv[i], "-a") == 0) {
 			ignorehidden = 0;
@@ -177,20 +183,22 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	// add relative / if not provided
-	char* dir_to_ls_ptr = dir_to_ls;
-	while (*(dir_to_ls_ptr + 1) != '\0') {
-		dir_to_ls_ptr++;
-	}
-	if (*dir_to_ls_ptr != '/') {
-		dir_to_ls_ptr++;
-		*dir_to_ls_ptr = '/';
-		dir_to_ls_ptr++;
-		*dir_to_ls_ptr = '\0';
-	}
+        for (i = 0; i < 4; i ++) {
+        	char* dir_to_ls_ptr = dirz_to_ls[i];
+        	while (*(dir_to_ls_ptr + 1) != '\0') {
+        		dir_to_ls_ptr++;
+        	}
+        	if (*dir_to_ls_ptr != '/') {
+        		dir_to_ls_ptr++;
+        		*dir_to_ls_ptr = '/';
+        		dir_to_ls_ptr++;
+        		*dir_to_ls_ptr = '\0';
+        	}
+        }
 
 	// Open main directory fd
 	// Need to update this to take first argument as a path
-	int fd = open(dir_to_ls, O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY);
+	int fd = open(dirz_to_ls[0], O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY);
 	if (fd == -1) {
 		printf("oops");
 		return 1;
@@ -242,7 +250,7 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		dirbuf = &dirarr[i];
-		stat(dir_cat(dir_to_ls, dirbuf->d_name), &statbuf);
+		stat(dir_cat(dirz_to_ls[0], dirbuf->d_name), &statbuf);
 		statarr[i] = statbuf;
 		passwdarr[i] = *getpwuid(statbuf.st_uid);
 		grouparr[i] = *getgrgid(statbuf.st_gid);
