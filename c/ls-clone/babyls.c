@@ -230,6 +230,8 @@ int main(int argc, char *argv[]) {
 			qsort(dirarr, dirarridx, sizeof(struct dirent), alpha_dirbuf_comp);
 		}
 	}
+        // close directory
+        closedir(dirptr);
 	// load additional data if required (long format flag)
 	struct stat statarr[MAX_DIRECTORY_SIZE];
 	struct passwd passwdarr[MAX_DIRECTORY_SIZE];
@@ -253,4 +255,7 @@ int main(int argc, char *argv[]) {
 	        print_directories_names(dirarr, dirarridx);
 	}
 	close(fd);
+        for (i = 0; i < 4; i++) {
+            free(dirz_to_ls[i]);
+        }
 }
