@@ -118,8 +118,6 @@ void print_directories(struct dirent dirarr[], struct stat statarr[],
 	}
 }
 
-// how people organize string manipulation in c is beyond me
-// this would be difficult to manage for long running programs
 char* dir_cat(char* base, char* path) {
 	char* full_path = malloc(MAX_DIRECTORY_SIZE * sizeof(char));
 	strncpy(full_path, base, MAX_DIRECTORY_SIZE);
@@ -232,17 +230,21 @@ int main(int argc, char *argv[]) {
 	struct passwd passwdarr[MAX_DIRECTORY_SIZE];
 	struct group grouparr[MAX_DIRECTORY_SIZE];
 	i = 0;
+        char* concat_directory;
 	while (long_list_fmt) {
 		if (i == dirarridx) {
 			break;
 		}
 		dirbuf = &dirarr[i];
-		stat(dir_cat(dirz_to_ls[0], dirbuf->d_name), &statbuf);
+                concat_directory = dir_cat(dirz_to_ls[0], dirbuf->d_name);
+		stat(concat_directory, &statbuf);
 		statarr[i] = statbuf;
 		passwdarr[i] = *getpwuid(statbuf.st_uid);
 		grouparr[i] = *getgrgid(statbuf.st_gid);
 
 		i++;
+                // free what dir_cat put on heap
+                free(concat_directory);
 	}
 	if (long_list_fmt) {
 	        print_directories(dirarr, statarr, passwdarr, grouparr, dirarridx);
