@@ -103,12 +103,7 @@ void print_directories(struct dirent dirarr[], struct stat statarr[],
 	for (i = 0; i < len; i++) {
 		totalblks += statarr[i].st_blocks;
 	}
-	// divide by two is a HACK
-	// I don't understand block size
-	// blksize_t st_blksize;     /* Block size for filesystem I/O
-        // blkcnt_t  st_blocks;      /* Number of 512B blocks allocated
-	// Maybe you do math based on st_blksize?
-	printf("total %ld\n", totalblks / 2);
+	printf("total %ld\n", totalblks);
 	for (i = 0; i < len; i++) {
                 permissions_str(statarr[i].st_mode, permissions);
                 trimed_ts(statarr[i].st_mtim.tv_sec, trimed);
