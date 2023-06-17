@@ -67,51 +67,39 @@ void print_directories_names(struct dirent dirarr[], int len) {
     	printf("\n");
 }
 
-char* permissions_str(unsigned long st_mode) {
-	// interestingly if we try to use the stack
-	// it messes up when you have two string on the stack
-	// that is to say trimed_ts and permissions_str conflict
-	// Here ls is short-lived so we don't bother freeing it.
-	// to be fair.. the compiler wanted me about strings on stack :)
-	char* permissions = malloc(11 * sizeof(char));
+void permissions_str(unsigned long st_mode, char *buf) {
 	int i;
 	for (i = 0; i < 10; i++) {
-		permissions[i] = '-';
+		buf[i] = '-';
 	}
 	for (i = 0; i < 9; i++) {
 		if ((st_mode & permission_lookup[i]) == permission_lookup[i]) {
-			permissions[i + 1] = permission_char[i];
+			buf[i + 1] = permission_char[i];
 		}
 	}
 	for (i = 0; i < 8; i++) {
 		if ((st_mode & file_type_lookup[i]) == file_type_lookup[i]) {
-			permissions[0] = file_type_char[i];
+			buf[0] = file_type_char[i];
 		}
 	}
-	permissions[10] = '\0';
-	return permissions;
+	buf[10] = '\0';
 }
 
-char *trimed_ts(long epoch) {
-	// interestingly if we try to use the stack
-	// it messes up when you have two string on the stack
-	// that is to say trimed_ts and permissions_str conflict
-	// Here ls is short-lived so we don't bother freeing it.
-	// to be fair.. the compiler wanted me about strings on stack :)
-	char* trimed_ts_string = malloc(13 * sizeof(char));
+void trimed_ts(long epoch, char *buf) {
 	int i;
 	char* full_ts_string = ctime(&epoch);
 	for (i = 0; i < 12; i++) {
-		trimed_ts_string[i] = full_ts_string[i + 4];
+		buf[i] = full_ts_string[i + 4];
 	}
-	trimed_ts_string[12] = '\0';
-	return trimed_ts_string;
+	buf[12] = '\0';
 }
 
 void print_directories(struct dirent dirarr[], struct stat statarr[], 
 		       struct passwd passwdarr[], struct group grouparr[], int len) {
 	int i;
 	unsigned long totalblks = 0;
+        char permissions[11], trimed[13];
+
 	for (i = 0; i < len; i++) {
 		totalblks += statarr[i].st_blocks;
 	}
@@ -122,13 +110,15 @@ void print_directories(struct dirent dirarr[], struct stat statarr[],
 	// Maybe you do math based on st_blksize?
 	printf("total %ld\n", totalblks / 2);
 	for (i = 0; i < len; i++) {
+                permissions_str(statarr[i].st_mode, permissions);
+                trimed_ts(statarr[i].st_mtim.tv_sec, trimed);
 		// %5ld should be dynamic.. 
 		printf("%s %ld %s %s %5ld %s %s\n",
-				permissions_str(statarr[i].st_mode),
+				permissions,
 				statarr[i].st_nlink,
 				passwdarr[i].pw_name, grouparr[i].gr_name,
 				statarr[i].st_size, 
-				trimed_ts(statarr[i].st_mtim.tv_sec),
+				trimed,
 				dirarr[i].d_name);
 	}
 }
