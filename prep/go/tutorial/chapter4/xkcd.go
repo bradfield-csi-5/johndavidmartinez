@@ -69,6 +69,9 @@ func main() {
         os.Exit(1)
     }
 
+    // In practice we know 3000 is a better starting capacity
+    // as xkcd has ~2790 comics but its nice to force
+    // the resize logic to run for testing + learning purposes
     comics := make([]XKCDComic, 2000, 2000)
     // TODO make id lookup fast
     loadComics(&comics)
@@ -89,6 +92,9 @@ func main() {
 }
 
 
+// first version inverted word index?
+// Probably fine for first attempt
+
 func loadComics(comics *[]XKCDComic) {
     var wg sync.WaitGroup
     // Comics start at 1
@@ -108,8 +114,8 @@ func loadComics(comics *[]XKCDComic) {
 
         if i % 10 == 0 {
             // Only run 10 goroutines at a time
-            // This prevents us from submitting over our capacity
-            // It also allows us to guarantee no modifications during resize
+            // This prevents us from submitting over our array capacity
+            // It also allows us to guarantee no modifications happen during array resize
             wg.Wait()
         }
 
@@ -122,8 +128,7 @@ func loadComics(comics *[]XKCDComic) {
         }
 
         // Resize comics array if running out of space
-        // Broken
-        if i + 100 > len(*comics) {
+        if i + 10 > len(*comics) {
             // resize
             newComics := make([]XKCDComic, len(*comics) * 2, cap(*comics) * 2)
             copy(newComics, *comics)
