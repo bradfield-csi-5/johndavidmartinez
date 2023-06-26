@@ -12,6 +12,7 @@ import (
         "sync"
         "unicode"
         "bufio"
+        "sort"
 )
 
 type XKCDComic struct {
@@ -32,7 +33,7 @@ type XKCDComic struct {
 type XKCDComicView struct {
     Id int `json:"id"`
     Title string `json:"title"`
-    Transcript string `json:"transcript"`
+    TranscriptSummary string `json:"transcript_summary"`
     Link string `json:"link"`
 }
 
@@ -56,22 +57,18 @@ func toView(comic XKCDComic) XKCDComicView {
     var view XKCDComicView
     view.Id = comic.Id
     view.Title = comic.Title
-    view.Transcript = comic.Transcript
+    view.TranscriptSummary = comic.Transcript[:100]
+    view.TranscriptSummary += "..."
     view.Link = fmt.Sprintf(XKCD_URL_FMT, comic.Id)
     return view
 }
 
-
-// First just write code to fetch and unmarshal
-// then write code to lookup by id
-// after that you can think more about indexing
 var XKCD_URL_JSON_FMT string 
 var XKCD_URL_FMT string 
 var COMIC_STORAGE_FMT string 
 var COMIC_INDEX_STORAGE string
 
 
-// do something naive first match on words a word index
 func mkComicStorageDir() string { 
     comicStorageDir := "/.local/xkcd_cmd/"
     homeDir, err := os.UserHomeDir()
@@ -80,7 +77,8 @@ func mkComicStorageDir() string {
         os.Exit(1)
     }
     storageDir := strings.Join([]string{homeDir, comicStorageDir}, "")
-    // TODO fix file permissions 
+    // TODO Just threw file permissions around to get stuff to work
+    // Refresh understanding and make least-priviledge
     err = os.Mkdir(storageDir, 0777)
     if err != nil && !os.IsExist(err) {
         log.Fatal(err)
@@ -116,16 +114,15 @@ func main() {
     // as xkcd has ~2790 comics but its nice to force
     // the resize logic to run for testing + learning purposes
     comics := make([]XKCDComic, 2000, 2000)
-    // TODO make id lookup fast
     loadComics(&comics)
 
+    // TODO make id lookup fast (only load single comic from disk)
     if err == nil && comicId > 0 {
         // if requested by number print comic
         if comicId > len(comics) {
-            fmt.Printf("Comic %v not found\n", comicId)
+            printComics([]int{}, &comics)
             os.Exit(0)
         }
-        fmt.Printf("Looking up comic %d\n", comicId)
         printComics([]int{comicId}, &comics)
     } else {
         index := loadAndBuildIndex(&comics)
@@ -150,24 +147,53 @@ func printComics(ids []int, comics *[]XKCDComic) {
     fmt.Println(string(data))
 }
 
+type WeightedId struct {
+    Id int
+    Weight int
+}
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+// Case insensitive search the term-based inverted index by matching exact terms
+// The more terms that match the higher the weight
+// For example "Three Laws of Robotics" will return the comics that
+// Mention that phrase at the top of the list.
+// Hardcode results to 3 since it can be comfortable viewed
+// TODO make flag for result limit
+// TODO (Algorithms) could use levelstien distance to search on typo'd terms
 func searchIndex(terms []string, index ComicIndex) []int {
-    ids := make([]int, 0, 0)
-    idsMap := make(map[int]bool)
+    weightedIds := make([]WeightedId, 0, 0)
+    idsMapToWeight := make(map[int]int)
+    ids := make([]int, 0, 3)
 
     for _, term := range terms {
         for comicId, _ := range index[strings.ToLower(term)] {
-            // put in map to dedup
-            idsMap[comicId] = true
+            // TODO I did term counting here to do this quickly but I should store
+            // the term counts in the index itself instead of calculating at search time
+            idsMapToWeight[comicId]++
         }
     }
-    // convert map into array
-    for comicId, _ := range idsMap {
-        ids = append(ids, comicId)
+    for id, weight := range idsMapToWeight {
+        weightedIds = append(weightedIds, WeightedId{id, weight})
     }
-    return ids
+    // TODO Stack overflowed this but it is pretty easy to understand
+    // Worth reading more about sort module though
+    sort.Slice(weightedIds, func(i, j int) bool {
+        return weightedIds[i].Weight > weightedIds[j].Weight
+    })
+    idsToReturn := min(3, len(weightedIds))
+    for i := 0; i < idsToReturn; i++ {
+        ids = append(ids, weightedIds[i].Id)
+    }
+    return ids[:idsToReturn]
 }
 
-
+// Creates a simple case-insensitive inverted index of alphabetic terms
 func loadAndBuildIndex(comics *[]XKCDComic) ComicIndex {
     indexData, err := os.ReadFile(COMIC_INDEX_STORAGE)
     if err != nil {
@@ -178,7 +204,6 @@ func loadAndBuildIndex(comics *[]XKCDComic) ComicIndex {
             os.Exit(1)
         }
     } 
-    // map of map so ids don't duplicate
     index := newComicIndex()
     err = json.Unmarshal(indexData, &index)
     if err != nil {
@@ -194,9 +219,17 @@ func loadAndBuildIndex(comics *[]XKCDComic) ComicIndex {
             scanner.Split(scanLetters)
             for scanner.Scan() {
                 term := strings.ToLower(scanner.Text())
+                // Skip words like "a" and "to"
+                if len(term) < 3 {
+                    continue
+                }
                 addComicIndex(index, term, comic.Id)
             }
 
+            // TODO flush comics back to disk with Index = True so it
+            // doesn't get indexed every run
+            // Trying to do it as everything is written now introduces a bug
+            // that isn't worth fixing until the performance is desired (profiling exercise? :))
             comic.Indexed = true 
         }
     }
@@ -204,8 +237,7 @@ func loadAndBuildIndex(comics *[]XKCDComic) ComicIndex {
     return index
 }
 
-// Yeah.. ChatGPT'd this one
-// Should practice writing custom scanners outside of this exercise
+// TODO ChatGPT'd this. Need to understand writing custom scanners outside this exercise
 func scanLetters(data []byte, atEOF bool) (advance int, token []byte, err error) {
     start := 0
     for ; start < len(data); start++ {
@@ -236,14 +268,10 @@ func flushIndexToDisk(index *ComicIndex) {
 
     err = ioutil.WriteFile(COMIC_INDEX_STORAGE, data, 0644)
     if err != nil {
-        fmt.Printf("HERE\n")
         log.Fatal(err)
     }
 }
 
-
-// first version inverted word index?
-// Probably fine for first attempt
 
 func loadComics(comics *[]XKCDComic) {
     var wg sync.WaitGroup
@@ -259,12 +287,11 @@ func loadComics(comics *[]XKCDComic) {
         wg.Add(1)
         // id is incrementing and passed by value so it is safe
         // each routine will only access its index in the array
-        //fmt.Fprintf(os.Stderr, "Loading comic %v\n", i)
         go tryLoadFromDiskFallbackToInternet(i, &(*comics)[i], &wg, &finished)
 
-        // Run lots of go routines for the first 2000
+        // Run lots of go routines for the first 2500
         // Then slow down once we go past 2500
-        // If we hit xkcd too aggressively we may start to timeout
+        // If we let this go nuts we may start to timeout
         if i < 2500 {
             if i % 500 == 0 {
                 wg.Wait()
@@ -277,9 +304,8 @@ func loadComics(comics *[]XKCDComic) {
 
         if finished {
             // A routine hit the end of the comic list
-            // This is safe because even if multiple routines
-            // flipped the flag they all would flipped it to true
-            // (Nothing flips it to false, no race conditions here)
+            // This is safe because even if multiple routines touch it
+            // because all routines only flip false -> true; none go true -> false
             break
         }
 
@@ -315,6 +341,7 @@ func tryLoadFromDiskFallbackToInternet(id int, xkcdComic *XKCDComic, wg *sync.Wa
     }
 }
 
+// TODO handle network issues?
 func loadComicFromInternetAndFlushToDisk(id int, xkcdComic *XKCDComic, wg *sync.WaitGroup, finished *bool) {
     url := fmt.Sprintf(XKCD_URL_JSON_FMT, id)
     resp, err := http.Get(url)
@@ -338,10 +365,11 @@ func loadComicFromInternetAndFlushToDisk(id int, xkcdComic *XKCDComic, wg *sync.
     } else if resp.StatusCode == http.StatusNotFound {
         // We've likely reached the end of available comics.
         // Commuicate that back to the caller via the boolean
-        wg.Done()
         *finished = true 
+        wg.Done()
     } else {
         fmt.Printf("\n----\nohno\n----\n")
+        os.Exit(1)
     }
 }
 
@@ -362,25 +390,3 @@ func flushComicToDisk(id int, xkcdComic *XKCDComic, wg *sync.WaitGroup) {
     }
 }
 
-//
-//func refreshAndLoadIndex(comics []XKCDComic) ComicIndex {
-//    // load existing index
-//    // refresh
-//    index := new ComicIndex
-//    return index
-//}
-//
-//func fetchComic(number int) {
-//}
-//
-//
-//
-//
-//func searchComics(comics []XKCDComic, index ComicIndex) int[] {
-//    return comics[0]
-//}
-//
-//
-//
-//
-//
