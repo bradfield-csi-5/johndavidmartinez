@@ -1,0 +1,5 @@
+* Understand stack memory and how it gets "re-used"
+* Fix block volume value - What are block sizes again?
+* valgrind and fix all memory leaks
+* Add support for multi-file
+* Can we port this to golang?
