@@ -57,7 +57,11 @@ func toView(comic XKCDComic) XKCDComicView {
     var view XKCDComicView
     view.Id = comic.Id
     view.Title = comic.Title
-    view.TranscriptSummary = comic.Transcript[:100]
+    if len(comic.Transcript) >= 100 {
+        view.TranscriptSummary = comic.Transcript[:100]
+    } else {
+        view.TranscriptSummary = comic.Transcript
+    }
     view.TranscriptSummary += "..."
     view.Link = fmt.Sprintf(XKCD_URL_FMT, comic.Id)
     return view
@@ -172,10 +176,29 @@ func searchIndex(terms []string, index ComicIndex) []int {
     ids := make([]int, 0, 3)
 
     for _, term := range terms {
-        for comicId, _ := range index[strings.ToLower(term)] {
-            // TODO I did term counting here to do this quickly but I should store
-            // the term counts in the index itself instead of calculating at search time
-            idsMapToWeight[comicId]++
+        // If term is in index
+        if _, value := index[strings.ToLower(term)]; value {
+            // Add those comic ids
+            for comicId, _ := range index[strings.ToLower(term)] {
+                idsMapToWeight[comicId]++
+            }
+        } else {
+            // Try to match term using levenshtein distance
+            termMatch := ""
+            termMatchDistance := 100
+            for indexTerm, _ := range index {
+                distance := lev(term, indexTerm)
+                if (distance < termMatchDistance) {
+                    termMatchDistance = distance
+                    termMatch = indexTerm
+                }
+            }
+            // Once term is matched add comic ids
+            if termMatch != "" {
+                for comicId, _ := range index[strings.ToLower(termMatch)] {
+                    idsMapToWeight[comicId]++
+                }
+            }
         }
     }
     for id, weight := range idsMapToWeight {
@@ -390,3 +413,48 @@ func flushComicToDisk(id int, xkcdComic *XKCDComic, wg *sync.WaitGroup) {
     }
 }
 
+// ok ok, I implemented the recursive solution myself looking at the formula but it was slow
+// I MIGHT have ripped this from someone else's leetcode solution <_<
+func lev(word1 string, word2 string) int {
+    m := len(word1)
+    n := len(word2)
+    if m == 0 {
+        return n
+    }
+    if n == 0 {
+        return m
+    }
+    
+    dp := make([][]int, m+1)
+    for i := 0; i <= m; i++ {
+        dp[i] = make([]int, n+1)
+    }
+    
+    for i := 0; i <= m; i ++ {
+        dp[i][0] = i
+    }
+    for i := 0; i <= n; i ++ {
+        dp[0][i] = i
+    }
+    
+    
+    for i := 1; i <= m ; i++ {
+        for j := 1; j <= n; j++ {
+            if word1[i - 1] == word2[j - 1] {
+                dp[i][j] = dp[i - 1][j - 1]
+            }else {
+                dp[i][j] = minDis(dp[i -1][j], dp[i][j - 1], dp[i - 1][j - 1]) + 1
+            }
+        } 
+    }
+    
+    return dp[len(word1)][len(word2)]
+
+}
+
+func minDis(a, b, c int) int {
+    return min(a, min(b, c))
+}
+
+//TODO weights in index on title and summary
+// so weight will be higher if term in title
