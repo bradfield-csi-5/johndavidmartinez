@@ -57,6 +57,7 @@ func toView(comic XKCDComic) XKCDComicView {
     var view XKCDComicView
     view.Id = comic.Id
     view.Title = comic.Title
+    // Some comics don't have transcripts
     if len(comic.Transcript) >= 100 {
         view.TranscriptSummary = comic.Transcript[:100]
     } else {
@@ -176,6 +177,10 @@ func searchIndex(terms []string, index ComicIndex) []int {
     ids := make([]int, 0, 3)
 
     for _, term := range terms {
+        // ignore short terms
+        if len(term) < 3 {
+           continue
+        }
         // If term is in index
         if _, value := index[strings.ToLower(term)]; value {
             // Add those comic ids
