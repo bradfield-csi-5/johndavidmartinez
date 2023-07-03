@@ -1,0 +1,9 @@
+Support long format flag
+It should be the same as ls
+
+might implement path support too
+
+Leave implement qsort and colors as stretch goals
+those are better left for when we get to shell / algorithms
+
+Need to move on to golang book after long format implemented
