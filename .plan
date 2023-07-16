@@ -1,0 +1,33 @@
+* Read golang book
+** TODO chapter 5 - 11
+** Answer the following questions / Perform the following exercises
+*** How to handle errors in a go function
+*** When to use anonymous functions; what are they good for?
+*** How to recover from a panic?
+*** When to use pointers as a function parameter?
+*** Make an interface and use it to organize function calls for certain data (vague)
+*** Understand when and how to use channels (do exercises)
+*** Syncronoization -- how would you fix your unsafe boolean? Channels?
+*** Organize a program as a go package / module
+*** Write a test suite
+*** Create a skeleton module with a test suite
+*** Write a low-level program. Is it necessary for performance?
+*** Use the benchmarking tools; create a benchmarking suite
+** Re-write the xkcd program
+*** Make benchmarking and testing a first-class though
+*** Make all error handling in main (bubble errors)
+*** Make indexing a separate action
+*** optimize loading to only load what's required
+*** Use channels
+*** Ensure the 3 ripped peaces of code you implement from scratch
+
+* Algorithms
+** Do a write up of your current understanding on class problem
+*** Make sure its the optimal solution and be able to explain big O
+** Solve the lock rotation problem and do a write-up
+** Solve the merge k sorted linked lists and do a write-up
+
+* C Programming
+** Read recommended chapters in K&R
+** Re-write ls-clone with K&R style expanding on what you learned
+** Fix your understanding of blocks
