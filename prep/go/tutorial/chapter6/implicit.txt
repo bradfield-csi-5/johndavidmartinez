@@ -1,0 +1,2 @@
+Don't know if I get it but methods can make pointer accessing implicit
+if the method receives a pointer
