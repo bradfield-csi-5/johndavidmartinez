@@ -1,0 +1,106 @@
+// package xkcdcore
+
+// import (
+// 	"encoding/json"
+// 	"fmt"
+// 	"io/ioutil"
+// 	"net/http"
+// 	"os"
+// )
+
+// func Hello() string {
+// 	return "Hello"
+// }
+
+// // type xkcdComic struct {
+// // 	Month      string `json:"month"`
+// // 	Id         int    `json:"num"`
+// // 	Link       string `json:"link"`
+// // 	Year       string `json:"year"`
+// // 	News       string `json:"new"`
+// // 	SafeTitle  string `json:"safe_title"`
+// // 	Transcript string `json:"transcript"`
+// // 	Alt        string `json:"alt"`
+// // 	Img        string `json:"img"`
+// // 	Title      string `json:"title"`
+// // 	Day        string `json:"day"`
+// // }
+
+// // var COMIC_STORAGE_DIR_FMT string
+// // var XKCD_URL_JSON_FMT = "https://xkcd.com/%d/info.0.json"
+
+// // func mkOrGetComicStorageDir() (string, error) {
+// // 	if COMIC_STORAGE_DIR_FMT != "" {
+// // 		return COMIC_STORAGE_DIR_FMT, nil
+// // 	}
+// // 	comicStorageDir := "/.local/xkcd_cmd/"
+// // 	homeDir, err := os.UserHomeDir()
+// // 	if err != nil {
+// // 		return comicStorageDir, err
+// // 	}
+// // 	storageDir := strings.Join([]string{homeDir, comicStorageDir}, "")
+// // 	err = os.Mkdir(storageDir, 0777)
+// // 	if err != nil && !os.IsExist(err) {
+// // 		return comicStorageDir, err
+// // 	}
+// // 	comicStorageDirFmt := strings.Join([]string{comicStorageDir, "%d"}, "")
+// // 	COMIC_STORAGE_DIR_FMT = comicStorageDirFmt
+// // 	return COMIC_STORAGE_DIR_FMT, nil
+// // }
+
+// func getComic(comic *xkcdComic, comicIdx int) error {
+// 	storageDirFmt, err := mkOrGetComicStorageDir()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	data, err := os.ReadFile(fmt.Sprintf(storageDirFmt, comicIdx))
+// 	if err != nil {
+// 		// Fall back to interent regardless of failure
+// 		// Read can fail because file doesn't exist or some other issue
+// 		return getComicFromInternetAndFlushToDisk(comic, comicIdx)
+// 	}
+// 	// If we read from file but something went wrong marshalling
+// 	// Assume that file is corrupted and get it from the internet again
+// 	err = json.Unmarshal(data, comic)
+// 	if err != nil {
+// 		return getComicFromInternetAndFlushToDisk(comic, comicIdx)
+// 	}
+
+// 	return nil
+// }
+
+// // don't combine this
+// // make a real client http://hassansin.github.io/Unit-Testing-http-client-in-Go
+// func getComicFromInternetAndFlushToDisk(comic *xkcdComic, comicIdx int) error {
+// 	url := fmt.Sprintf(XKCD_URL_JSON_FMT, comicIdx)
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	defer resp.Body.Close()
+
+// 	if resp.StatusCode == http.StatusOK {
+// 		body, err := ioutil.ReadAll(resp.Body)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		err = json.Unmarshal(body, comic)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		// Flushing to disk is best effort. If it fails that's fine.
+// 		go flushComicToDisk(comic, comicIdx)
+// 	} else {
+// 		return fmt.Errorf(
+// 			"comic from internet: Failed due to http status: %d", resp.StatusCode)
+// 	}
+// 	return nil
+// }
+
+// // WARNING: This function is best effort. It swallows errors
+// func flushComicToDisk(comic *xkcdComic, comicIdx int) {
+// 	storageDirFmt, _ := mkOrGetComicStorageDir()
+// 	data, _ := json.MarshalIndent(comic, "", " ")
+// 	ioutil.WriteFile(fmt.Sprintf(storageDirFmt, comicIdx), data, 0644)
+// }
