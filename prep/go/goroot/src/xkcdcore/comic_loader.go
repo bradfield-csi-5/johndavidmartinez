@@ -44,11 +44,6 @@ func (b *ComicLoaderBuilder) withCacheDirectory(cacheDirectory string) *ComicLoa
 	return b
 }
 
-func (b *ComicLoaderBuilder) withComicIdx(comicIdx int) *ComicLoaderBuilder {
-	b.comicIdx = comicIdx
-	return b
-}
-
 func mkOrGetComicStorageDir() (string, error) {
 	if COMIC_STORAGE_DIR != "" {
 		return COMIC_STORAGE_DIR, nil
@@ -79,10 +74,6 @@ func (b *ComicLoaderBuilder) build() (*ComicLoader, error) {
 		b.cacheDirectory = defaultDir
 	}
 
-	if b.comicIdx == 0 {
-		return &ComicLoader{}, fmt.Errorf("ComicLoaderBuilder: comicIdx must be provided")
-	}
-
 	return &ComicLoader{
 		comicInfo:      &ComicInfo{},
 		client:         b.client,
@@ -98,8 +89,8 @@ type ComicLoader struct {
 	comicIdx       int
 }
 
-func (cl *ComicLoader) getComicInfo() (*ComicInfo, error) {
-	comicIdx := strconv.Itoa(cl.comicIdx)
+func (cl *ComicLoader) getComicInfo(idx int) (*ComicInfo, error) {
+	comicIdx := strconv.Itoa(idx)
 	comicInfo := &ComicInfo{}
 	data, err := os.ReadFile(cl.cacheDirectory + "/" + comicIdx)
 	// If file is read from cache without error
@@ -114,7 +105,7 @@ func (cl *ComicLoader) getComicInfo() (*ComicInfo, error) {
 		}
 		// File is not present or corrupted. Fall though to internet load
 	}
-	data, err = cl.client.getComic(cl.comicIdx)
+	data, err = cl.client.getComic(idx)
 	if err != nil {
 		return comicInfo, fmt.Errorf("getComic Failed: %w", err)
 	}
