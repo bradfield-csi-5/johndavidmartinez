@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -123,4 +124,50 @@ func BenchmarkIndexHappyPath(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		indexer.index()
 	}
+}
+
+func TestComicIndexObject(t *testing.T) {
+	comicInfo := &ComicInfo{}
+	data, err := os.ReadFile("./test/xkcdComic1.json")
+	if err != nil {
+		log.Fatal("Bug in Test")
+	}
+	err = json.Unmarshal(data, comicInfo)
+	if err != nil {
+		log.Fatal("Bug in test")
+	}
+
+	obj := newComicIndexObject()
+	obj.addComic(comicInfo)
+
+	expectedTitleIndex := map[string]map[int]int{
+		"barrel": {1: 1},
+		"part":   {1: 1},
+	}
+	eq := reflect.DeepEqual(expectedTitleIndex, obj.titleIndex)
+	assert(t, eq)
+	expectedBodyIndex := map[string]map[int]int{
+		"boy":      {1: 2},
+		"sits":     {1: 1},
+		"barrel":   {1: 2},
+		"which":    {1: 1},
+		"floating": {1: 1},
+		"ocean":    {1: 1},
+		"wonder":   {1: 1},
+		"where":    {1: 1},
+		"float":    {1: 1},
+		"next":     {1: 1},
+		"drifts":   {1: 1},
+		"into":     {1: 1},
+		"distance": {1: 1},
+		"nothing":  {1: 1},
+		"don":      {1: 1}, // right now the scanner cuts apostrophe'd words
+		"all":      {1: 1},
+		"can":      {1: 1},
+		"else":     {1: 1},
+		"seen":     {1: 1},
+	}
+
+	eq = reflect.DeepEqual(expectedBodyIndex, obj.bodyIndex)
+	assert(t, eq)
 }

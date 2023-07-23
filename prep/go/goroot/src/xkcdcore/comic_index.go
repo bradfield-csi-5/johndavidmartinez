@@ -1,19 +1,35 @@
 package xkcdcore
 
 import (
+	"bufio"
 	"strings"
 	"sync"
 	"sync/atomic"
 )
 
+type IndexMethod int64
+
+const (
+	LeveinstenComparison IndexMethod = iota
+	PrefixTree
+	Trigram
+	LeveinstenAutomata
+)
+
+const (
+	indexVersion = 1
+)
+
 type ComicIndex struct {
 	indexDirectory string
 	loader         *ComicLoader
+	indexMethod    IndexMethod
 }
 
 type ComicIndexObject struct {
-	titleIndex map[string]map[int]int
-	bodyIndex  map[string]map[int]int
+	titleIndex   map[string]map[int]int
+	bodyIndex    map[string]map[int]int
+	indexVersion int
 }
 
 func newComicIndexObject() ComicIndexObject {
@@ -22,6 +38,7 @@ func newComicIndexObject() ComicIndexObject {
 	bodyIndex := make(map[string]map[int]int)
 	obj.titleIndex = titleIndex
 	obj.bodyIndex = bodyIndex
+	obj.indexVersion = indexVersion
 	return obj
 }
 
@@ -39,19 +56,85 @@ func (obj *ComicIndexObject) addBodyWord(idx int, word string) {
 	obj.bodyIndex[word][idx]++
 }
 
+func (obj *ComicIndexObject) addComic(comic *ComicInfo) {
+	scanner := bufio.NewScanner(strings.NewReader(comic.Title))
+	scanner.Split(downcaseScanASCIIwords)
+	for scanner.Scan() {
+		term := scanner.Text()
+		if shouldIndexWord(term) {
+			obj.addTitleWord(comic.Id, term)
+		}
+	}
+	scanner = bufio.NewScanner(strings.NewReader(comic.Transcript))
+	scanner.Split(downcaseScanASCIIwords)
+	for scanner.Scan() {
+		term := scanner.Text()
+		if shouldIndexWord(term) {
+			obj.addBodyWord(comic.Id, term)
+		}
+	}
+}
+
 type ComicGetResult struct {
 	comicInfo *ComicInfo
 	success   bool
 }
 
 func newComicIndex(indexDirectory string, loader *ComicLoader) *ComicIndex {
-	return &ComicIndex{indexDirectory, loader}
+	return &ComicIndex{indexDirectory, loader, LeveinstenComparison}
 }
 
 func normalize(word string) string {
 	return strings.ToLower(word)
 }
 
+func downcaseASCIILetter(b byte) byte {
+	if b >= 65 && b <= 90 {
+		return b + 32
+	}
+	return b
+}
+
+func isDowncasedASCIILetter(b byte) bool {
+	return b >= 97 && b <= 122
+}
+
+func shouldIndexWord(word string) bool {
+	if len(word) <= 2 {
+		return false
+	}
+	if word == "the" || word == "and" || word == "alt" {
+		return false
+	}
+	return true
+}
+
+// Scanner that takes an array of bytes and return only the downcased ASCII words
+// XKCD comics are in english so we can get away with ignoring non-ASCII characters
+// Does not handle punctuationed words like "don't"
+func downcaseScanASCIIwords(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	start := 0
+	// Find the start of the next word
+	for ; start < len(data); start++ {
+		downcased := downcaseASCIILetter(data[start])
+		if isDowncasedASCIILetter(downcased) {
+			break
+		}
+	}
+
+	// travel bytes until a non-ASCII letter is found
+	// downcasing letters as we go
+	for i := start; i < len(data); i++ {
+		data[i] = downcaseASCIILetter(data[i])
+		if !isDowncasedASCIILetter(data[i]) {
+			return i + 1, data[start:i], nil
+		}
+	}
+
+	return len(data) + 1, data[start:], nil
+}
+
+// returns number of comics indexed
 func (ci *ComicIndex) index() error {
 	comicResults := make([]ComicGetResult, 0, 0)
 	resultChannel := make(chan ComicGetResult)
@@ -59,6 +142,7 @@ func (ci *ComicIndex) index() error {
 	comicIdx := 1
 	var wg sync.WaitGroup
 
+	// Get all the comics
 	go func() {
 		for {
 			select {
@@ -94,16 +178,12 @@ func (ci *ComicIndex) index() error {
 		}(comicIdx)
 		comicIdx++
 	}
-	// for i := 0; i < len(comicResults); i++ {
-	// 	if comicResults[i].success {
-	// 		fmt.Println(comicResults[i].comicInfo.Title)
-	// 	}
-	// }
-	// obj := newComicIndexObject()
+
+	// Create inverted index of comics
+	obj := newComicIndexObject()
 	for _, result := range comicResults {
 		if result.success {
-			// iterate words in title
-			// iterate words in body
+			obj.addComic(result.comicInfo)
 		}
 	}
 
