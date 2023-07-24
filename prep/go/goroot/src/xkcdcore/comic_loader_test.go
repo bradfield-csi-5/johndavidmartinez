@@ -37,8 +37,8 @@ func cleanTestStorageDir(name string) {
 	}
 }
 
-func cacheExists(name string, comicIdx string) bool {
-	_, err := os.Stat(cacheDir(name) + "/" + comicIdx)
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -46,6 +46,10 @@ func cacheExists(name string, comicIdx string) bool {
 		log.Fatal("Bug in test stat on cache dir failed: %w", err)
 	}
 	return true
+}
+
+func cacheExists(name string, comicIdx string) bool {
+	return fileExists(cacheDir(name) + "/" + comicIdx)
 }
 
 func TestHappyPath(t *testing.T) {

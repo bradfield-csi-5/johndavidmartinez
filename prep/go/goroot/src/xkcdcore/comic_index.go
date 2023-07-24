@@ -2,6 +2,11 @@ package xkcdcore
 
 import (
 	"bufio"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,52 +32,55 @@ type ComicIndex struct {
 }
 
 type ComicIndexObject struct {
-	titleIndex   map[string]map[int]int
-	bodyIndex    map[string]map[int]int
-	indexVersion int
+	TitleIndex   map[string]map[int]int `json:"titleIndex"`
+	BodyIndex    map[string]map[int]int `json:"bodyIndex"`
+	IndexVersion int                    `json:"indexVersion"`
 }
 
 func newComicIndexObject() ComicIndexObject {
 	obj := ComicIndexObject{}
 	titleIndex := make(map[string]map[int]int)
 	bodyIndex := make(map[string]map[int]int)
-	obj.titleIndex = titleIndex
-	obj.bodyIndex = bodyIndex
-	obj.indexVersion = indexVersion
+	obj.TitleIndex = titleIndex
+	obj.BodyIndex = bodyIndex
+	obj.IndexVersion = indexVersion
 	return obj
 }
 
 func (obj *ComicIndexObject) addTitleWord(idx int, word string) {
-	if obj.titleIndex[word] == nil {
-		obj.titleIndex[word] = make(map[int]int)
+	if obj.TitleIndex[word] == nil {
+		obj.TitleIndex[word] = make(map[int]int)
 	}
-	obj.titleIndex[word][idx]++
+	obj.TitleIndex[word][idx]++
 }
 
 func (obj *ComicIndexObject) addBodyWord(idx int, word string) {
-	if obj.bodyIndex[word] == nil {
-		obj.bodyIndex[word] = make(map[int]int)
+	if obj.BodyIndex[word] == nil {
+		obj.BodyIndex[word] = make(map[int]int)
 	}
-	obj.bodyIndex[word][idx]++
+	obj.BodyIndex[word][idx]++
 }
 
 func (obj *ComicIndexObject) addComic(comic *ComicInfo) {
-	scanner := bufio.NewScanner(strings.NewReader(comic.Title))
+	for _, term := range normalizeWordsToDowncaseASCII(comic.Title) {
+		obj.addTitleWord(comic.Id, term)
+	}
+	for _, term := range normalizeWordsToDowncaseASCII(comic.Transcript) {
+		obj.addBodyWord(comic.Id, term)
+	}
+}
+
+func normalizeWordsToDowncaseASCII(sentence string) []string {
+	words := make([]string, 0, 0)
+	scanner := bufio.NewScanner(strings.NewReader(sentence))
 	scanner.Split(downcaseScanASCIIwords)
 	for scanner.Scan() {
 		term := scanner.Text()
 		if shouldIndexWord(term) {
-			obj.addTitleWord(comic.Id, term)
+			words = append(words, term)
 		}
 	}
-	scanner = bufio.NewScanner(strings.NewReader(comic.Transcript))
-	scanner.Split(downcaseScanASCIIwords)
-	for scanner.Scan() {
-		term := scanner.Text()
-		if shouldIndexWord(term) {
-			obj.addBodyWord(comic.Id, term)
-		}
-	}
+	return words
 }
 
 type ComicGetResult struct {
@@ -187,10 +195,111 @@ func (ci *ComicIndex) index() error {
 		}
 	}
 
+	data, err := json.MarshalIndent(obj, "", " ")
+	if err != nil {
+		return fmt.Errorf("Error Creating Index: %w", err)
+	}
+	err = os.MkdirAll(ci.indexDirectory, 0777)
+	if err != nil {
+		return fmt.Errorf("Error making directory for Index: %w", err)
+	}
+	err = ioutil.WriteFile(ci.indexDirectory+"/"+"index", data, 0644)
+	if err != nil {
+		return fmt.Errorf("Error writing index: %w", err)
+	}
+
 	return nil
 }
 
-func (ci *ComicIndex) search(terms string) ([]int, error) {
-	comicIds := make([]int, 1)
-	return comicIds, nil
+type SearchResult struct {
+	comicId int
+	weight  int
+}
+
+type SearchResults struct {
+	results map[int]SearchResult
+}
+
+func (sr *SearchResults) toSortedArray() []int {
+	results := make([]SearchResult, 0, 0)
+	for _, v := range sr.results {
+		results = append(results, v)
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].weight > results[i].weight
+	})
+	ids := make([]int, 0, 0)
+	for _, v := range results {
+		ids = append(ids, v.comicId)
+	}
+	return ids
+}
+
+// Fine for small lists
+func filterStrings(a []string, b []string) []string {
+	filtered := make([]string, 0, 0)
+	index := make(map[string]int)
+	for _, s := range b {
+		index[s]++
+	}
+	for _, s := range a {
+		if _, ok := index[s]; !ok {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
+}
+
+func (ci *ComicIndex) search(searchSentence string, limit int) ([]int, error) {
+	// perform same processing on search terms as we do on indexing
+	terms := normalizeWordsToDowncaseASCII(searchSentence)
+	searchResults := SearchResults{}
+	searchResults.results = make(map[int]SearchResult)
+	obj := ComicIndexObject{}
+	data, err := ioutil.ReadFile(ci.indexDirectory + "/" + "index")
+	if err != nil {
+		return nil, fmt.Errorf("Error reading index: %w", err)
+	}
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading index: %w", err)
+	}
+
+	// Try exact matching first
+	foundExactTerms := make([]string, 0, 0)
+	for _, term := range terms {
+		if titleTermMap, ok := obj.TitleIndex[term]; ok {
+			foundExactTerms = append(foundExactTerms, term)
+			for id, _ := range titleTermMap {
+				result, ok := searchResults.results[id]
+				if !ok {
+					searchResults.results[id] = SearchResult{id, 0}
+					result = searchResults.results[id]
+				}
+				result.weight++
+			}
+		}
+		if bodyTermMap, ok := obj.BodyIndex[term]; ok {
+			for id, _ := range bodyTermMap {
+				result, ok := searchResults.results[id]
+				if !ok {
+					searchResults.results[id] = SearchResult{id, 0}
+					result = searchResults.results[id]
+				}
+				result.weight++
+			}
+		}
+	}
+	// Filter out terms that had exact matches. No need to search those further.
+	terms = filterStrings(terms, foundExactTerms)
+	if len(terms) == 0 {
+		return searchResults.toSortedArray()[:limit], nil
+	}
+
+	switch ci.indexMethod {
+	case LeveinstenComparison:
+		return searchResults.toSortedArray(), nil
+	default:
+		return nil, fmt.Errorf("Bad index method")
+	}
 }
