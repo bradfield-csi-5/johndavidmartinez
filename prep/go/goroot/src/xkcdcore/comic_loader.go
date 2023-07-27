@@ -30,6 +30,10 @@ type ComicLoaderBuilder struct {
 	comicIdx       int
 }
 
+// TODO cleanup
+func NewComicLoaderBuilder() *ComicLoaderBuilder {
+	return newComicLoaderBuilder()
+}
 func newComicLoaderBuilder() *ComicLoaderBuilder {
 	return &ComicLoaderBuilder{}
 }
@@ -61,6 +65,10 @@ func mkOrGetComicStorageDir() (string, error) {
 	return COMIC_STORAGE_DIR, nil
 }
 
+// TODO Cleanup
+func (b *ComicLoaderBuilder) Build() (*ComicLoader, error) {
+	return b.build()
+}
 func (b *ComicLoaderBuilder) build() (*ComicLoader, error) {
 	// Set defaults
 	if b.client == nil {
@@ -89,6 +97,10 @@ type ComicLoader struct {
 	comicIdx       int
 }
 
+// TODO cleanup
+func (cl *ComicLoader) GetComicInfo(idx int) (*ComicInfo, error) {
+	return cl.getComicInfo(idx)
+}
 func (cl *ComicLoader) getComicInfo(idx int) (*ComicInfo, error) {
 	comicIdx := strconv.Itoa(idx)
 	comicInfo := &ComicInfo{}

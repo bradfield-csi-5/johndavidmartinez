@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+const (
+	INDEX_CMD  = "index"
+	SEARCH_CMD = "search"
+)
+
 func main() {
 	counts := make(map[string]int)
 	input := bufio.NewScanner(os.Stdin)

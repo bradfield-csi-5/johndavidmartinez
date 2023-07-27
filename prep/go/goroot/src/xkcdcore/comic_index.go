@@ -31,6 +31,53 @@ type ComicIndex struct {
 	indexMethod    IndexMethod
 }
 
+type ComicIndexBuilder struct {
+	indexDirectory string
+	loader         *ComicLoader
+	indexMethod    IndexMethod
+}
+
+func NewComicIndexBuilder() *ComicIndexBuilder {
+	return &ComicIndexBuilder{}
+}
+
+func (b *ComicIndexBuilder) WithIndexDirectory(dir string) *ComicIndexBuilder {
+	b.indexDirectory = dir
+	return b
+}
+
+func (b *ComicIndexBuilder) WithLoader(loader *ComicLoader) *ComicIndexBuilder {
+	b.loader = loader
+	return b
+}
+
+func (b *ComicIndexBuilder) WithIndexMethod(method IndexMethod) *ComicIndexBuilder {
+	b.indexMethod = method
+	return b
+}
+
+func (b *ComicIndexBuilder) Build() (*ComicIndex, error) {
+	if b.loader == nil {
+		ldr, err := newComicLoaderBuilder().build()
+		if err != nil {
+			return &ComicIndex{}, fmt.Errorf("Fail to build ComicIndex: %v", err)
+		}
+		b.loader = ldr
+	}
+	if b.indexDirectory == "" {
+		dir, err := mkOrGetComicStorageDir()
+		if err != nil {
+			return &ComicIndex{}, fmt.Errorf("Failed to build ComicIndex: %v", err)
+		}
+		b.indexDirectory = dir
+	}
+	return &ComicIndex{
+		indexDirectory: b.indexDirectory,
+		loader:         b.loader,
+		indexMethod:    b.indexMethod,
+	}, nil
+}
+
 type ComicIndexObject struct {
 	TitleIndex   map[string]map[int]int `json:"titleIndex"`
 	BodyIndex    map[string]map[int]int `json:"bodyIndex"`
@@ -155,6 +202,10 @@ func downcaseScanASCIIwords(data []byte, atEOF bool) (advance int, token []byte,
 	return start, nil, nil
 }
 
+func (ci *ComicIndex) Index() error {
+	return ci.index()
+}
+
 // returns number of comics indexed
 func (ci *ComicIndex) index() error {
 	comicResults := make([]ComicGetResult, 0, 0)
@@ -272,6 +323,10 @@ func filterStrings(a []string, b []string) []string {
 	return filtered
 }
 
+// TODO cleanup
+func (ci *ComicIndex) Search(searchSentence string, limit int) ([]int, error) {
+	return ci.search(searchSentence, limit)
+}
 func (ci *ComicIndex) search(searchSentence string, limit int) ([]int, error) {
 	// perform same processing on search terms as we do on indexing
 	terms := normalizeWordsToDowncaseASCII(searchSentence)

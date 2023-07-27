@@ -61,3 +61,7 @@ func (api *GetComicAPI) getComic(comicIdx int) ([]byte, error) {
 func isNotFound(err error) bool {
 	return strings.Contains(err.Error(), "get comic: not found")
 }
+
+func Hello() string {
+	return "HI"
+}
