@@ -59,6 +59,17 @@ func loadTestComicData(idx int) []byte {
 	return data
 }
 
+// // for testing DP program for correctness
+// func recursiveLev(a, b string) int {
+// 	if len(b) == 0 {
+// 		return len(a)
+// 	}
+// 	if len(a) == 0 {
+// 		return len(b)
+// 	}
+// 	1 + min
+// }
+
 func TestIndexHappyPath(t *testing.T) {
 	// populateTestComics(t)
 	testCacheDir, err := mkOrGetTestStorageDir(t.Name())
@@ -182,7 +193,15 @@ func TestComicIndexObject(t *testing.T) {
 	assert(t, eq)
 }
 
-func TestSearchExactTerm(t *testing.T) {
+func TestNormalizeWordsToDowncaseASCII(t *testing.T) {
+	searchSentence := "Blown apart Clintn"
+	terms := normalizeWordsToDowncaseASCII(searchSentence)
+	assert(t, stringContains(terms, "blown"))
+	assert(t, stringContains(terms, "apart"))
+	assert(t, stringContains(terms, "clintn"))
+}
+
+func TestSearchLeveinstien(t *testing.T) {
 	// populateTestComics(t)
 	testCacheDir, err := mkOrGetTestStorageDir(t.Name())
 	if err != nil {
@@ -224,9 +243,20 @@ func TestSearchExactTerm(t *testing.T) {
 	ok(t, err)
 	assert(t, fileExists("./testindex"))
 
-	comicIds, err := indexer.search("Blown apart zipo", 1)
+	comicIds, err := indexer.search("Blown apart Clintn", 3)
 	ok(t, err)
 	assert(t, contains(comicIds, 5))
+	assert(t, contains(comicIds, 19))
+	assert(t, contains(comicIds, 98))
+}
+
+func stringContains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func contains(s []int, e int) bool {
