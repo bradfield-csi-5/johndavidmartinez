@@ -472,3 +472,7 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+func trigram(word string) []string {
+	
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"xkcdcore"
 )
 
@@ -79,7 +80,7 @@ func main() {
 			fmt.Printf("Failed to load index to search! %v\n", err)
 			os.Exit(1)
 		}
-		ids, err := indexer.Search(os.Args[2], 3)
+		ids, err := indexer.Search(strings.Join(os.Args[1:], " "), 3)
 		if err != nil {
 			fmt.Printf("Error searching index: %v", err)
 		}
