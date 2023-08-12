@@ -16,7 +16,7 @@ ALL_CFLAGS = -std=c99 -fPIE -m64 $(CFLAGS)
 ALL_LDFLAGS += $(LDFLAGS)
 ALL_ASFLAGS += $(ASFLAGS)
 
-EXCLUSIONS = hello_linux.o hello_mac.o
+EXCLUSIONS = hello_linux.o hello_mac.o bin_inspect.o
 C_OBJS = $(patsubst %.c,%.o,$(wildcard *.c))
 AS_OBJS = $(patsubst %.asm,%.o,$(wildcard *.asm))
 ALL_OBJS = $(filter-out $(EXCLUSIONS),$(C_OBJS) $(AS_OBJS) vendor/unity.o)
