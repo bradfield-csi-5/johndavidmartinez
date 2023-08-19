@@ -26,6 +26,9 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
     chunk->count++;
 }
 
+void writeConstant(Chunk* chunk, Value value, int line) {
+}
+
 int addConstant(Chunk* chunk, Value value) {
     writeValueArray(&chunk->constants, value);
     return chunk->constants.count - 1;
@@ -36,5 +39,10 @@ void freeChunk(Chunk* chunk) {
     FREE_ARRAY(int, chunk->lines, chunk->capacity);
     freeValueArray(&chunk->constants);
     initChunk(chunk);
+}
+
+// varint with a run-length encoding?
+int getLine(Chunk* chunk, int offset) {
+    return chunk->lines[offset];
 }
 
