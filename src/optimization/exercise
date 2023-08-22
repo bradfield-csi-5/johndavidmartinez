@@ -1,0 +1,42 @@
+AMD K7
+
+Division
+
+
+ops|lat
+1   -   100003c30: 55                           pushq   %rbp
+1   2   100003c31: 48 89 e5                     movq    %rsp, %rbp
+1   2   100003c34: 48 89 7d f8                  movq    %rdi, -8(%rbp)
+1   2   100003c38: 48 89 75 f0                  movq    %rsi, -16(%rbp)
+1   2   100003c3c: 48 8b 45 f8                  movq    -8(%rbp), %rax
+1   1   100003c40: 31 c9                        xorl    %ecx, %ecx
+1   2   100003c42: 89 ca                        movl    %ecx, %edx
+32  24  100003c44: 48 f7 75 f0                  divq    -16(%rbp)
+2   2   100003c48: 5d                           popq    %rbp
+2   1   100003c49: c3                           retq
+1   1   100003c4a: 66 0f 1f 44 00 00            nopw    (%rax,%rax)
+44  36
+        
+Slight improvement
+        
+1   2   100003c10: 55                           pushq   %rbp
+1   2   100003c11: 48 89 e5                     movq    %rsp, %rbp
+1   2   100003c14: 48 89 7d f8                  movq    %rdi, -8(%rbp)
+1   2   100003c18: 48 89 75 f0                  movq    %rsi, -16(%rbp)
+1   1   100003c1c: 48 8b 55 f0                  movq    -16(%rbp), %rdx
+19  7   100003c20: 48 0f bc c2                  bsfq    %rdx, %rax
+1   1   100003c24: 48 83 c0 01                  addq    $1, %rax
+1   1   100003c28: 31 c9                        xorl    %ecx, %ecx
+1   1   100003c2a: 48 83 fa 00                  cmpq    $0, %rdx
+1   1   100003c2e: 48 0f 44 c1                  cmoveq  %rcx, %rax
+?   ?   100003c32: 48 98                        cltq
+1   1   100003c34: 48 89 45 e8                  movq    %rax, -24(%rbp)
+1   1   100003c38: 48 8b 45 f8                  movq    -8(%rbp), %rax
+1   1   100003c3c: 48 8b 4d e8                  movq    -24(%rbp), %rcx
+1   1   100003c40: 48 d3 e8                     shrq    %cl, %rax
+1   1   100003c43: 5d                           popq    %rbp
+1   1   100003c44: c3                           retq
+        100003c45: 66 2e 0f 1f 84 00 00 00 00 00        nopw    %cs:(%rax,%rax)
+        100003c4f: 90                           nop
+34  25
+        
