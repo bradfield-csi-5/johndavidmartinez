@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define TEST_LOOPS 10000000
+#define TEST_LOOPS 1000000
 
 // NOTE: we know that memory_size and page_size are both powers of 2, so one
 // divides the other
